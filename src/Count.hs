@@ -100,7 +100,8 @@ best = viaVectorHashMap
 
 benchmark :: (NFData a, Ord a, Hashable a, D.Grouping a) => [a] -> [Benchmark]
 benchmark items =
-  [ b "viaVectorHashMap" viaVectorHashMap
+  [ b "lengthBaseline" List.length
+  , b "viaVectorHashMap" viaVectorHashMap
   , b "viaStrictHashMap" viaStrictHashMap
   , b "viaStrictMap" viaStrictMap
   , b "viaLazyMap" viaLazyMap
@@ -111,4 +112,5 @@ benchmark items =
   ]
  where
   b n f = bench n $ nf f items
+  {-# INLINE b #-}
 {-# INLINE benchmark #-}

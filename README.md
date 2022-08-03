@@ -20,38 +20,44 @@ Hopefully, this can serve as an experimentation ground for different ways of cou
 Counting all words in the `data/kjvbible.txt`:
 
 ```
+benchmarking count/lengthBaseline
+time                 4.824 ms   (4.806 ms .. 4.840 ms)
+                     1.000 R²   (0.999 R² .. 1.000 R²)
+mean                 4.843 ms   (4.827 ms .. 4.887 ms)
+std dev              77.77 μs   (36.67 μs .. 154.5 μs)
+
 benchmarking count/viaVectorHashMap
-time                 99.49 ms   (94.43 ms .. 103.7 ms)
-                     0.996 R²   (0.988 R² .. 1.000 R²)
-mean                 96.28 ms   (94.18 ms .. 98.78 ms)
-std dev              3.717 ms   (2.427 ms .. 4.750 ms)
+time                 94.01 ms   (91.38 ms .. 100.6 ms)
+                     0.997 R²   (0.989 R² .. 1.000 R²)
+mean                 95.45 ms   (94.44 ms .. 97.05 ms)
+std dev              2.044 ms   (1.024 ms .. 3.282 ms)
 
 benchmarking count/viaStrictHashMap
-time                 139.9 ms   (135.4 ms .. 143.1 ms)
+time                 140.8 ms   (135.9 ms .. 144.6 ms)
                      0.999 R²   (0.998 R² .. 1.000 R²)
-mean                 138.5 ms   (135.5 ms .. 140.9 ms)
-std dev              3.644 ms   (2.192 ms .. 5.413 ms)
+mean                 140.6 ms   (138.7 ms .. 142.7 ms)
+std dev              2.850 ms   (1.944 ms .. 4.569 ms)
 variance introduced by outliers: 12% (moderately inflated)
 
 benchmarking count/viaStrictMap
-time                 437.7 ms   (425.6 ms .. 447.2 ms)
+time                 444.2 ms   (436.9 ms .. 454.0 ms)
                      1.000 R²   (1.000 R² .. 1.000 R²)
-mean                 428.7 ms   (424.3 ms .. 432.9 ms)
-std dev              4.887 ms   (4.160 ms .. 5.405 ms)
+mean                 437.4 ms   (433.0 ms .. 440.7 ms)
+std dev              4.392 ms   (2.529 ms .. 5.420 ms)
 variance introduced by outliers: 19% (moderately inflated)
 
 benchmarking count/viaLazyMap
-time                 586.7 ms   (567.1 ms .. 608.5 ms)
-                     1.000 R²   (0.999 R² .. 1.000 R²)
-mean                 568.5 ms   (555.9 ms .. 575.1 ms)
-std dev              12.09 ms   (5.715 ms .. 15.34 ms)
+time                 581.1 ms   (573.6 ms .. 588.0 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 566.0 ms   (555.4 ms .. 571.4 ms)
+std dev              10.03 ms   (65.44 μs .. 12.31 ms)
 variance introduced by outliers: 19% (moderately inflated)
 
 benchmarking count/viaDiscrimination
-time                 718.2 ms   (694.9 ms .. 740.1 ms)
-                     1.000 R²   (1.000 R² .. 1.000 R²)
-mean                 696.2 ms   (669.9 ms .. 705.7 ms)
-std dev              17.70 ms   (1.683 ms .. 22.03 ms)
+time                 722.2 ms   (667.9 ms .. 759.6 ms)
+                     0.999 R²   (0.998 R² .. 1.000 R²)
+mean                 705.4 ms   (687.4 ms .. 714.8 ms)
+std dev              17.09 ms   (7.782 ms .. 21.63 ms)
 variance introduced by outliers: 19% (moderately inflated)
 ```
 
