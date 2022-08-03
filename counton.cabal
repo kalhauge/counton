@@ -37,9 +37,13 @@ library
     , containers
     , criterion
     , deepseq
+    , discrimination
     , hashable
+    , primitive
     , unordered-containers
-  default-language: Haskell2010
+    , vector
+    , vector-hashtables
+  default-language: GHC2021
 
 benchmark main
   type: exitcode-stdio-1.0
@@ -56,6 +60,10 @@ benchmark main
     , counton
     , criterion
     , deepseq
+    , discrimination
     , hashable
+    , primitive
     , unordered-containers
-  default-language: Haskell2010
+    , vector
+    , vector-hashtables
+  default-language: GHC2021

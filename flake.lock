@@ -41,13 +41,17 @@
     "vector-hashtables": {
       "flake": false,
       "locked": {
-        "narHash": "sha256-ve3wdOWyS9aS7GlD08LTBU5K45qE/9OBgUpa+5teRMc=",
-        "type": "tarball",
-        "url": "https://hackage.haskell.org/package/vector-hashtables-0.1.1.1/vector-hashtables-0.1.1.1.tar.gz"
+        "lastModified": 1631303708,
+        "narHash": "sha256-p63qLznlubfxbNujNVxh8qFgkBYVrnnNaixuGe221t0=",
+        "owner": "klapaucius",
+        "repo": "vector-hashtables",
+        "rev": "7dc17e11a2faddcf7e55e07ff84be081cba6c33f",
+        "type": "github"
       },
       "original": {
-        "type": "tarball",
-        "url": "https://hackage.haskell.org/package/vector-hashtables-0.1.1.1/vector-hashtables-0.1.1.1.tar.gz"
+        "owner": "klapaucius",
+        "repo": "vector-hashtables",
+        "type": "github"
       }
     }
   },

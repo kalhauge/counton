@@ -6,7 +6,7 @@
       nixpkgs.url = "github:NixOS/nixpkgs/22.05";
       flake-utils.url = "github:numtide/flake-utils";
       vector-hashtables = {
-        url = "https://hackage.haskell.org/package/vector-hashtables-0.1.1.1/vector-hashtables-0.1.1.1.tar.gz";
+        url = "github:klapaucius/vector-hashtables";
         flake = false;
       };
     };

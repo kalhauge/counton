@@ -11,15 +11,23 @@ ghc-options: -Wall -fno-warn-incomplete-uni-patterns
 
 dependencies:
   - base >= 4.9 && < 5
-  - criterion
-  - deepseq
   - bytestring
   - containers
+  - contravariant
+  - criterion
+  - deepseq
+  - discrimination
   - hashable
+  - primitive
   - unordered-containers
+  - vector
+  - vector-hashtables
+
 
 library:
   source-dirs: src
+  verbatim:
+    default-language: GHC2021
 
 benchmarks:
   main:
@@ -27,3 +35,5 @@ benchmarks:
     source-dirs: benchmark
     dependencies:
       - counton
+    verbatim:
+      default-language: GHC2021
