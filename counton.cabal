@@ -1,0 +1,61 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.7.
+--
+-- see: https://github.com/sol/hpack
+
+name:           counton
+version:        0.1.0
+synopsis:       A benchmark-suite for counting, sorting, and reading
+category:       Development
+homepage:       https://github.com/kalhauge/counton#readme
+bug-reports:    https://github.com/kalhauge/counton/issues
+maintainer:     Christian Gram Kalhauge <christian@kalhauge.dk>
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/kalhauge/counton
+
+library
+  exposed-modules:
+      Count
+      Count.Repeated
+      Count.Sort
+  other-modules:
+      Paths_counton
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -fno-warn-incomplete-uni-patterns
+  build-depends:
+      base >=4.9 && <5
+    , bytestring
+    , containers
+    , criterion
+    , deepseq
+    , hashable
+    , unordered-containers
+  default-language: Haskell2010
+
+benchmark main
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Paths_counton
+  hs-source-dirs:
+      benchmark
+  ghc-options: -Wall -fno-warn-incomplete-uni-patterns
+  build-depends:
+      base >=4.9 && <5
+    , bytestring
+    , containers
+    , counton
+    , criterion
+    , deepseq
+    , hashable
+    , unordered-containers
+  default-language: Haskell2010

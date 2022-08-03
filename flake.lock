@@ -1,0 +1,56 @@
+{
+  "nodes": {
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1656928814,
+        "narHash": "sha256-RIFfgBuKz6Hp89yRr7+NR5tzIAbn52h8vT6vXkYjZoM=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "7e2a3b3dfd9af950a856d66b0a7d01e3c18aa249",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1653936696,
+        "narHash": "sha256-M6bJShji9AIDZ7Kh7CPwPBPb/T7RiVev2PAcOi4fxDQ=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "ce6aa13369b667ac2542593170993504932eb836",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "22.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs",
+        "vector-hashtables": "vector-hashtables"
+      }
+    },
+    "vector-hashtables": {
+      "flake": false,
+      "locked": {
+        "narHash": "sha256-ve3wdOWyS9aS7GlD08LTBU5K45qE/9OBgUpa+5teRMc=",
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/vector-hashtables-0.1.1.1/vector-hashtables-0.1.1.1.tar.gz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/vector-hashtables-0.1.1.1/vector-hashtables-0.1.1.1.tar.gz"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

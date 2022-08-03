@@ -1,0 +1,29 @@
+name: counton
+version: 0.1.0
+synopsis: A benchmark-suite for counting, sorting, and reading
+maintainer: Christian Gram Kalhauge <christian@kalhauge.dk>
+github: kalhauge/counton
+category: Development
+extra-source-files:
+  - CHANGELOG.md
+
+ghc-options: -Wall -fno-warn-incomplete-uni-patterns
+
+dependencies:
+  - base >= 4.9 && < 5
+  - criterion
+  - deepseq
+  - bytestring
+  - containers
+  - hashable
+  - unordered-containers
+
+library:
+  source-dirs: src
+
+benchmarks:
+  main:
+    main: Main.hs
+    source-dirs: benchmark
+    dependencies:
+      - counton
