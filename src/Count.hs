@@ -55,19 +55,33 @@ viaStrictHashMap =
     . List.map (\a -> (a, 1))
 {-# INLINE viaStrictHashMap #-}
 
-type HashTable k v =
-  H.Dictionary (H.PrimState IO) VM.MVector k UM.MVector v
+type HashTable m k v =
+  H.Dictionary (H.PrimState m) VM.MVector k UM.MVector v
 
 viaVectorHashMap :: forall a. (Hashable a) => [a] -> [(a, Int)]
 viaVectorHashMap items = runST go
  where
   go :: forall s. ST s [(a, Int)]
   go = do
-    t :: H.Dictionary (H.PrimState (ST s)) VM.MVector a UM.MVector Int <- H.initialize 1
+    t :: HashTable (ST s) k v <- H.initialize 1
     let incr = H.alter t (Just . maybe 1 (+ 1))
     traverse_ incr items
     H.toList t
 {-# INLINE viaVectorHashMap #-}
+
+type IntHashTable m v =
+  H.Dictionary (H.PrimState m) UM.MVector Int UM.MVector v
+
+viaUnboxedVectorHashMap :: [Int] -> [(Int, Int)]
+viaUnboxedVectorHashMap items = runST go
+ where
+  go :: forall s. ST s [(Int, Int)]
+  go = do
+    t :: IntHashTable (ST s) v <- H.initialize 1
+    let incr = H.alter t (Just . maybe 1 (+ 1))
+    traverse_ incr items
+    H.toList t
+{-# INLINE viaUnboxedVectorHashMap #-}
 
 viaStrictMap :: Ord a => [a] -> [(a, Int)]
 viaStrictMap =
@@ -120,7 +134,10 @@ benchmark items =
   -- , bgroup "repeated" (Count.Repeated.benchmark (Count.Sort.best items))
   ]
     ++ ( case eqT @[a] @[Int] of
-          Just Refl -> [bench "viaIntMap" $ nf viaIntMap items]
+          Just Refl ->
+            [ b "viaIntMap" viaIntMap
+            , b "viaUnboxedVectorHash" viaUnboxedVectorHashMap
+            ]
           Nothing -> []
        )
  where
