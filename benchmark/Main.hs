@@ -4,6 +4,7 @@ module Main where
 
 -- data
 import qualified Data.List as List
+import qualified System.IO as IO
 import Data.Word (Word64)
 
 -- bytestring
@@ -43,8 +44,10 @@ instance D.Grouping B.ByteString where
 
 main :: IO ()
 main = do
-  kjvbible <- {-# SCC read #-} C.words <$!!> B.readFile "data/kjvbible.txt"
+  kjvbible :: [B.ByteString] <- {-# SCC readkjvbible #-} C.words <$!!> B.readFile "data/kjvbible.txt"
+  numbers :: [Int] <- {-# SCC readkjvbible #-} List.map read . List.words <$!!> IO.readFile "data/numbers.txt"
 
   defaultMain
-    [ bgroup "count" (Count.benchmark kjvbible)
+    [ bgroup "kjvbible" (Count.benchmark kjvbible)
+    , bgroup "numbers" (Count.benchmark numbers)
     ]

@@ -9,9 +9,29 @@
         url = "github:klapaucius/vector-hashtables";
         flake = false;
       };
+      clutter = {
+        url = "github:noughtmare/clutter";
+        flake = false;
+      };
+      compact = {
+        url = "github:ezyang/compact";
+        flake = false;
+      };
+      text = {
+        url = "github:haskell/text";
+        flake = false;
+      };
+      with-utf8 = {
+        url = "github:serokell/haskell-with-utf8";
+        flake = false;
+      };
+      http-client = {
+        url = "github:snoyberg/http-client";
+        flake = false;
+      };
     };
 
-  outputs = { self, nixpkgs, flake-utils, vector-hashtables }:
+  outputs = inputs@{ self, nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachSystem (flake-utils.lib.defaultSystems) (system:
       let
         pkgs = (import nixpkgs { inherit system; });
@@ -22,10 +42,10 @@
             root = self;
             name = "counton";
             source-overrides = {
-              vector-hashtables = vector-hashtables;
+              inherit (inputs) vector-hashtables;
             };
             overrides = hself: hsuper: {
-              mkDeriviation = args: hsuper.mkDeriviation (args // { enableLibraryProfiling = true; });
+              mkDeriviation = args: hsuper.mkDeriviation (args // { enableLibraryProfiling = true; doCheck = false; });
               vector-hashtables = pkgs.haskell.lib.dontCheck hsuper.vector-hashtables;
             };
             modifier = drv:
@@ -38,7 +58,6 @@
                   hp2pretty
                   hs-speedscope
                   hlint
-                  hpack
                 ]);
           };
       in

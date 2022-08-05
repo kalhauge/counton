@@ -1,10 +1,10 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Count where
 
 -- base
-
 import Control.Monad.ST (ST, runST)
 import Data.Foldable (traverse_)
 import qualified Data.List as List
@@ -41,6 +41,8 @@ import qualified Data.Vector.Unboxed.Mutable as UM
 -- counton
 import qualified Count.Repeated
 import qualified Count.Sort
+import qualified Data.IntMap.Strict as IntMap
+import Data.Typeable
 
 viaSorted :: Ord a => [a] -> [(a, Int)]
 viaSorted = Count.Repeated.best . Count.Sort.best
@@ -81,6 +83,13 @@ viaLazyMap =
     . List.map (\a -> (a, 1))
 {-# INLINE viaLazyMap #-}
 
+viaIntMap :: [Int] -> [(Int, Int)]
+viaIntMap =
+  IntMap.toList
+    . IntMap.fromListWith (+)
+    . List.map (\a -> (a, 1))
+{-# INLINE viaIntMap #-}
+
 viaDiscrimination :: D.Grouping a => [a] -> [(a, Int)]
 viaDiscrimination = runCounting D.grouping
  where
@@ -98,7 +107,7 @@ best :: Hashable a => [a] -> [(a, Int)]
 best = viaVectorHashMap
 {-# INLINE best #-}
 
-benchmark :: (NFData a, Ord a, Hashable a, D.Grouping a) => [a] -> [Benchmark]
+benchmark :: forall a. (NFData a, Typeable a, Ord a, Hashable a, D.Grouping a) => [a] -> [Benchmark]
 benchmark items =
   [ b "lengthBaseline" List.length
   , b "viaVectorHashMap" viaVectorHashMap
@@ -110,7 +119,12 @@ benchmark items =
   -- , bgroup "sort" (Count.Sort.benchmark items)
   -- , bgroup "repeated" (Count.Repeated.benchmark (Count.Sort.best items))
   ]
+    ++ ( case eqT @[a] @[Int] of
+          Just Refl -> [bench "viaIntMap" $ nf viaIntMap items]
+          Nothing -> []
+       )
  where
+  b :: forall b. NFData b => String -> ([a] -> b) -> Benchmark
   b n f = bench n $ nf f items
   {-# INLINE b #-}
 {-# INLINE benchmark #-}

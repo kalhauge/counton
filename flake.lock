@@ -1,5 +1,37 @@
 {
   "nodes": {
+    "clutter": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1659562997,
+        "narHash": "sha256-gHtY9c4t5gzJEWosPp5lsJi3/wKPclL9Fo1RXCRIMiA=",
+        "owner": "noughtmare",
+        "repo": "clutter",
+        "rev": "5407a948fbcde4a27443ffb6cadb61c78c6d1f0a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "noughtmare",
+        "repo": "clutter",
+        "type": "github"
+      }
+    },
+    "compact": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1637505405,
+        "narHash": "sha256-JnkEcIQ3UEeftm0ptTRtveFdbl4RjXNyCS6+IJhy4dc=",
+        "owner": "ezyang",
+        "repo": "compact",
+        "rev": "1e80459d16ca4d914c9bf9e0538493f7cf2fd610",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ezyang",
+        "repo": "compact",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "locked": {
         "lastModified": 1656928814,
@@ -12,6 +44,22 @@
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "http-client": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1659447912,
+        "narHash": "sha256-p3/kxY2PmXxqPBKm6c0lZO+tgyWJWxej0ROe5CMYHyk=",
+        "owner": "snoyberg",
+        "repo": "http-client",
+        "rev": "815df6b049586efca4a9277ff1b7e8cee5c01f5e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "snoyberg",
+        "repo": "http-client",
         "type": "github"
       }
     },
@@ -33,9 +81,30 @@
     },
     "root": {
       "inputs": {
+        "clutter": "clutter",
+        "compact": "compact",
         "flake-utils": "flake-utils",
+        "http-client": "http-client",
         "nixpkgs": "nixpkgs",
-        "vector-hashtables": "vector-hashtables"
+        "text": "text",
+        "vector-hashtables": "vector-hashtables",
+        "with-utf8": "with-utf8"
+      }
+    },
+    "text": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1659479998,
+        "narHash": "sha256-Qv3MbYDc1HrpsTNLTnqp7didHgMhIgS2SUbiJ3om5fc=",
+        "owner": "haskell",
+        "repo": "text",
+        "rev": "8ae2888a340911e088ad9507f22464dc383c944b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "haskell",
+        "repo": "text",
+        "type": "github"
       }
     },
     "vector-hashtables": {
@@ -51,6 +120,22 @@
       "original": {
         "owner": "klapaucius",
         "repo": "vector-hashtables",
+        "type": "github"
+      }
+    },
+    "with-utf8": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1640606138,
+        "narHash": "sha256-Vf3BoG44l5DBt/Hh4R9E+Hsjbz/j/Atbg0nG50HRstE=",
+        "owner": "serokell",
+        "repo": "haskell-with-utf8",
+        "rev": "e74dcfafbf1889073392ced319acb9336bad6e77",
+        "type": "github"
+      },
+      "original": {
+        "owner": "serokell",
+        "repo": "haskell-with-utf8",
         "type": "github"
       }
     }
