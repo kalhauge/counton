@@ -1,6 +1,9 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Count where
 
@@ -8,6 +11,8 @@ module Count where
 import Control.Monad.ST (ST, runST)
 import Data.Foldable (traverse_)
 import qualified Data.List as List
+import Data.Typeable
+import Data.Bits
 
 -- deepseq
 import Control.DeepSeq (NFData)
@@ -26,7 +31,7 @@ import qualified Data.Discrimination as D
 import qualified Data.HashMap.Strict as HashMap.Strict
 
 -- hashable
-import Data.Hashable (Hashable)
+import Data.Hashable (Hashable (..))
 
 -- primitive
 import qualified Data.Primitive.MutVar as MutVar
@@ -36,13 +41,14 @@ import qualified Data.Vector.Hashtables as H
 
 -- vector
 import qualified Data.Vector.Mutable as VM
+import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
 
 -- counton
 import qualified Count.Repeated
 import qualified Count.Sort
+import qualified Data.ByteString as B
 import qualified Data.IntMap.Strict as IntMap
-import Data.Typeable
 
 viaSorted :: Ord a => [a] -> [(a, Int)]
 viaSorted = Count.Repeated.best . Count.Sort.best
@@ -68,6 +74,64 @@ viaVectorHashMap items = runST go
     traverse_ incr items
     H.toList t
 {-# INLINE viaVectorHashMap #-}
+
+class Finite a where
+  group :: a -> U.Vector Int
+
+instance Finite Int where
+  group = U.singleton
+
+instance Finite B.ByteString where
+  group = U.fromList . toWords
+   where
+    toWords :: B.ByteString -> [Int]
+    toWords !bs
+      | B.null bs = []
+      | otherwise = List.foldl' (\a r -> a `shiftL` 8 .|. idx r) 0 [0 .. x - 1] : toWords (B.drop x bs)
+     where
+      x = min 8 t
+      idx = fromIntegral . B.index bs
+      t = B.length bs
+
+type UnboxedHashTable m k v =
+  H.Dictionary (H.PrimState m) UM.MVector k UM.MVector v
+
+instance (Hashable a, UM.Unbox a) => Hashable (U.Vector a) where
+  hashWithSalt i = hashWithSalt i . U.toList
+  {-# INLINE hashWithSalt #-}
+
+viaVectorHashMap2 :: forall a. (Finite a, Hashable a) => [a] -> [(a, Int)]
+viaVectorHashMap2 items = runST go
+ where
+  go :: forall s. ST s [(a, Int)]
+  go = do
+    results <- MutVar.newMutVar ([] :: [(a, U.Vector Int)])
+    t1 :: UnboxedHashTable (ST s) Int v <- H.initialize 1
+    t2 :: UnboxedHashTable (ST s) (Int, Int) v <- H.initialize 1
+    t3 :: UnboxedHashTable (ST s) (Int, Int, Int) v <- H.initialize 1
+    rest :: HashTable (ST s) a Int <- H.initialize 1
+    -- t4 :: V.Vector (UnboxedHashTable (ST s) (Int, Int, Int, Int) v) <- V. H.initialize 1
+    -- t5 :: V.Vector (UnboxedHashTable (ST s) (Int, Int, Int, Int, Int) v) <- V. H.initialize 1
+    let incr a g = \case
+          Nothing -> do
+            MutVar.modifyMutVar' results ((a, g) :)
+            pure $ Just 1
+          Just n -> pure $ Just (n + 1)
+        count a = case U.length g of
+          1 -> H.alterM t1 (incr a g) (g `U.unsafeIndex` 0)
+          2 -> H.alterM t2 (incr a g) (g `U.unsafeIndex` 0, g `U.unsafeIndex` 1)
+          3 -> H.alterM t3 (incr a g) (g `U.unsafeIndex` 0, g `U.unsafeIndex` 1, g `U.unsafeIndex` 2)
+          _ -> H.alterM rest (incr a g) a
+         where
+          g = group a
+        xlookup a g = case U.length g of
+          1 -> H.lookup' t1 (g `U.unsafeIndex` 0)
+          2 -> H.lookup' t2 (g `U.unsafeIndex` 0, g `U.unsafeIndex` 1)
+          3 -> H.lookup' t3 (g `U.unsafeIndex` 0, g `U.unsafeIndex` 1, g `U.unsafeIndex` 2)
+          _ -> H.lookup' rest a
+    traverse_ count items
+    mapM (\(a, g) -> (a,) <$> xlookup a g) =<< MutVar.readMutVar results
+{-# INLINE viaVectorHashMap2 #-}
 
 type IntHashTable m v =
   H.Dictionary (H.PrimState m) UM.MVector Int UM.MVector v
@@ -121,10 +185,11 @@ best :: Hashable a => [a] -> [(a, Int)]
 best = viaVectorHashMap
 {-# INLINE best #-}
 
-benchmark :: forall a. (NFData a, Typeable a, Ord a, Hashable a, D.Grouping a) => [a] -> [Benchmark]
+benchmark :: forall a. (NFData a, Finite a, Typeable a, Ord a, Hashable a, D.Grouping a) => [a] -> [Benchmark]
 benchmark items =
   [ b "lengthBaseline" List.length
   , b "viaVectorHashMap" viaVectorHashMap
+  , b "viaVectorHashMap2" viaVectorHashMap2
   , b "viaStrictHashMap" viaStrictHashMap
   , b "viaStrictMap" viaStrictMap
   , b "viaLazyMap" viaLazyMap
