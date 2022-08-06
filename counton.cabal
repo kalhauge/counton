@@ -26,6 +26,7 @@ library
       Count
       Count.Repeated
       Count.Sort
+      IntCounter
   other-modules:
       Paths_counton
   hs-source-dirs:
