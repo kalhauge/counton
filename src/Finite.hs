@@ -121,22 +121,17 @@ count (MkCounter ih _) [i] =
   IntCounter.count ih i
 count (MkCounter _ t) xs'@(x : xs) = do
   let i = (h `mod` (size - n - 1))
-  v <- readByteArray t i
-  if
-      | v == x -> do
-          isEntry (i + 1) xs >>= \case
-            (-1) -> incrByteArray t (i + n + 1)
-            j -> findNextEntryFrom j >>= go
-      | v == 0 -> do
-          checkZeroesWithin (i + 1) (i + n + 2) >>= \case
-            (-1) -> do
-              writeAllByteArray t i xs'
-              writeByteArray t (i + n + 1) (1 :: Int)
-            j -> findNextEntryFrom j >>= go
-      | otherwise -> do
-          isZero ((i - 1) `mod` n) >>= \case
-            True -> go (i + 1)
+  if i > 2
+    then do
+      -- Check if its the end of another entry
+      isZero (i - 2) >>= \case
+        True -> go i
+        False -> do
+          -- Or if it's out in nowhere
+          isZero (i - 1) >>= \case
+            True -> go i
             False -> findNextEntryFrom i >>= go
+    else go i
  where
   h = hash xs'
   n = length xs'
