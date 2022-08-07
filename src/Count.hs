@@ -47,6 +47,7 @@ import qualified Count.Repeated
 import qualified Count.Sort
 import qualified Data.IntMap.Strict as IntMap
 
+import qualified Finite
 import qualified IntCounter
 
 viaSorted :: Ord a => [a] -> [(a, Int)]
@@ -96,6 +97,17 @@ viaIntCounter items = runST go
     h :: IntCounter.IntCounter (ST s) <- IntCounter.new 60000
     traverse_ (IntCounter.count h) items
     IntCounter.toList h
+{-# INLINE viaIntCounter #-}
+
+viaFinite :: Finite.Finite a => [a] -> [([Int], Int)]
+viaFinite items = runST go
+ where
+  go :: forall s. ST s [([Int], Int)]
+  go = do
+    h :: Finite.Counter (ST s) <- Finite.new 60000
+    traverse_ (Finite.count h) (map Finite.group items)
+    Finite.toList h
+{-# INLINE viaFinite #-}
 
 viaStrictMap :: Ord a => [a] -> [(a, Int)]
 viaStrictMap =
@@ -135,12 +147,13 @@ best :: Hashable a => [a] -> [(a, Int)]
 best = viaVectorHashMap
 {-# INLINE best #-}
 
-benchmark :: forall a. (NFData a, Typeable a, Ord a, Hashable a, D.Grouping a) => [a] -> [Benchmark]
+benchmark :: forall a. (NFData a, Typeable a, Ord a, Hashable a, D.Grouping a, Finite.Finite a) => [a] -> [Benchmark]
 benchmark items =
   [ b "lengthBaseline" List.length
   , b "viaVectorHashMap" viaVectorHashMap
   , b "viaStrictHashMap" viaStrictHashMap
   , b "viaStrictMap" viaStrictMap
+  , b "viaFinite" viaFinite
   , -- , b "viaLazyMap" viaLazyMap
     b "viaDiscrimination" viaDiscrimination
     -- , b "viaSorted" viaSorted

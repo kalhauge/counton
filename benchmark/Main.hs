@@ -47,6 +47,7 @@ main = do
   kjvbible :: [B.ByteString] <- {-# SCC readkjvbible #-} C.words <$!!> B.readFile "data/kjvbible.txt"
   numbers :: [Int] <- {-# SCC readkjvbible #-} List.map read . List.words <$!!> IO.readFile "data/numbers.txt"
 
+  -- print $ Count.viaFinite numbers
   defaultMain
     [ bgroup "kjvbible" (Count.benchmark kjvbible)
     , bgroup "numbers" (Count.benchmark numbers)
