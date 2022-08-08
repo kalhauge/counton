@@ -47,6 +47,7 @@ import qualified Count.Repeated
 import qualified Count.Sort
 import qualified Data.IntMap.Strict as IntMap
 
+import qualified Data.ByteString as B
 import qualified Finite
 import qualified IntCounter
 
@@ -99,12 +100,12 @@ viaIntCounter items = runST go
     IntCounter.toList h
 {-# INLINE viaIntCounter #-}
 
-viaFinite :: forall a. Finite.Finite a => [a] -> [(a, Int)]
+viaFinite :: forall a. (Finite.Finite a) => [a] -> [(a, Int)]
 viaFinite items = runST go
  where
   go :: forall s. ST s [(a, Int)]
   go = do
-    h :: Finite.Counter (ST s) a <- Finite.new 60000
+    h :: Finite.Counter (ST s) a <- Finite.new 120000
     traverse_ (Finite.count h) items
     Finite.toList h
 {-# INLINE viaFinite #-}
@@ -154,11 +155,11 @@ benchmark items =
   , b "viaStrictHashMap" viaStrictHashMap
   , b "viaStrictMap" viaStrictMap
   , b "viaFinite" viaFinite
-  , -- , b "viaLazyMap" viaLazyMap
-    b "viaDiscrimination" viaDiscrimination
-    -- , b "viaSorted" viaSorted
-    -- , bgroup "sort" (Count.Sort.benchmark items)
-    -- , bgroup "repeated" (Count.Repeated.benchmark (Count.Sort.best items))
+  , b "viaDiscrimination" viaDiscrimination
+  -- , b "viaLazyMap" viaLazyMap
+  -- , b "viaSorted" viaSorted
+  -- , bgroup "sort" (Count.Sort.benchmark items)
+  -- , bgroup "repeated" (Count.Repeated.benchmark (Count.Sort.best items))
   ]
     ++ ( case eqT @[a] @[Int] of
           Just Refl ->

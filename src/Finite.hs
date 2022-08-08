@@ -2,18 +2,22 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
-{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | A module of finite data, and their compressed.
 module Finite where
 
+import Control.Exception (assert)
+import Control.Monad (unless, when)
 import Control.Monad.Primitive (PrimMonad (PrimState))
 import Data.Bits
 import qualified Data.ByteString as B
+import Data.Foldable
 import Data.Hashable
 import qualified Data.List as List
 import Data.Primitive
 import qualified Data.Primitive.MutVar as MutVar
+import Debug.Trace
 import Prelude hiding (lookup)
 
 type MArray m = MutableByteArray (PrimState m)
@@ -22,7 +26,15 @@ class Finite a where
   group :: a -> [Int]
 
 instance Finite Int where
-  group a = [a]
+  group a =
+    if
+        | a == 0 -> [-1, 1]
+        | a == -1 -> [-1, -1]
+        | otherwise -> [a]
+  {-# INLINE group #-}
+
+instance Finite [Int] where
+  group a = a
   {-# INLINE group #-}
 
 instance Finite B.ByteString where
@@ -32,181 +44,102 @@ instance Finite B.ByteString where
     toWords !bs
       | B.null bs = []
       | otherwise =
-          List.foldl'
-            (\a r' -> a `unsafeShiftL` 8 .|. idx r')
-            0
-            [0 .. x - 1] :
+          ( List.foldl'
+              (\a r' -> a `unsafeShiftL` 7 .|. idx r')
+              0
+              [0 .. x - 1]
+          ) :
           toWords (B.drop x bs)
      where
-      x = min 8 t
+      x = min 9 t
       idx = fromIntegral . B.index bs
       t = B.length bs
   {-# INLINE group #-}
 
-{- Third try is the charm.
+{- Fourth try is the charm.
 
   Idea:
 
-  1. Encode all data as zero terminated words.
-  2. Save them under their hash.
+  1. Encode all data as zero-less words.
+  2. Save entries in array of type
 
-    ... | words | 0 | count | ...
-
-  3. To Insert: Lookup a position in the array.
-
-    - If it is 0 then, check that it is not followed
-      by a 0, then is either
-
-          V           V   V
-      ... 0|X|X|X|X|X|0|X|0 ...
-
-      Continue right until you find a sequence equal to
-      your sequence, terminated by a zero, followed by a count.
-      Or a space great enough to fit your
-      sequence. (If you go too long consider resizing the array).
-
-      Problem, how do we differentiate the cases:
-
-        ------+
-              V
-      ... W|0|C|0|W|0|C ...
-      ... 0|0|W|0|C|0|0 ...
-
-      Solution, save all single cases in an IntCounter.
-
-      ... W|W|0|C|0|W|W|0|C ...
-      ... 0|0|W|0|C|0|0 ...
-
-      ... 0|0|W|0|C|0|0 ...
-
+    .|0|C|W|W|W..|.
+     |<--- n --->| = |Ws| + 2
 -}
 
 data Counter m a = MkCounter
-  { intCounter :: !(MutableByteArray (PrimState m))
-  , intEntries :: !(MutVar.MutVar (PrimState m) [(a, Int)])
-  , stringCounter :: !(MutableByteArray (PrimState m))
-  , stringEntries :: !(MutVar.MutVar (PrimState m) [(a, Int)])
+  { array :: !(MutableByteArray (PrimState m))
+  , entries :: !(MutVar.MutVar (PrimState m) [(a, Int)])
   }
 
 new :: PrimMonad m => Int -> m (Counter m a)
 new n = do
-  ic <- newByteArray (n * 2 * sizeOf (0 :: Int))
-  setByteArray ic 0 n (0 :: Int)
-  ce <- MutVar.newMutVar []
-
   t <- newByteArray (n * sizeOf (0 :: Int))
+  -- array starts as zero --
   setByteArray t 0 n (0 :: Int)
-  te <- MutVar.newMutVar []
-
-  pure (MkCounter ic ce t te)
+  e <- MutVar.newMutVar []
+  pure (MkCounter t e)
 {-# INLINE new #-}
 
-count :: (Finite a, PrimMonad m) => Counter m a -> a -> m ()
-count (MkCounter ic ce t te) a = do
-  case xs' of
-    [] -> error "Not Implemented Yet"
-    [k] -> go (unsafeShiftL k 1 `mod` size)
-     where
-      -- From IntCounter, but use count as sentinel to avoid (-1) error
-      size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
-      go !i = do
-        key <- readByteArray ic i
-        v <- readByteArray ic (i + 1)
-        if
-            -- slot is empty
-            | v == (0 :: Int) -> do
-                MutVar.modifyMutVar ce ((a, i + 1) :)
-                writeByteArray ic i k
-                writeByteArray ic (i + 1) (1 :: Int)
-            -- slot is filled
-            | key == k -> do
-                writeByteArray ic (i + 1) (v + 1 :: Int)
-            -- wrong slot
-            | otherwise -> do
-                go ((i + 2) `rem` size)
-    x : xs -> do
-      let i = (h `mod` (size - n - 1))
-      if i > 2
-        then do
-          findNextEntryFrom (i - 2) >>= go
-        else go i
-     where
-      go !i = do
-        v <- readByteArray t i
-        if
-            | v == x -> do
-                isEntry (i + 1) xs >>= \case
-                  (-1) -> incrByteArray t (i + n + 1)
-                  j -> findNextEntryFrom j >>= go
-            | v == 0 -> do
-                checkZeroesWithin (i + 1) (i + n + 2) >>= \case
-                  (-1) -> do
-                    MutVar.modifyMutVar te ((a, i + n + 1) :)
-                    writeAllByteArray t i xs'
-                    writeByteArray t (i + n + 1) (1 :: Int)
-                  j -> findNextEntryFrom j >>= go
-            | otherwise -> do
-                isZero ((i - 1) `mod` n) >>= \case
-                  True -> go (i + 1)
-                  False -> findNextEntryFrom i >>= go
-
-      size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
-      findNextEntryFrom !j = do
-        isZero j >>= \case
-          True -> return ((j + 2) `mod` (size - n - 2))
-          False -> findNextEntryFrom ((j + 1) `mod` (size - n - 2))
-
-      checkZeroesWithin !i !j = do
-        isZero i >>= \case
-          True
-            | (i + 1) /= j -> checkZeroesWithin (i + 1) j
-            | otherwise -> return (-1)
-          False -> return (i - 1)
-
-      isZero j =
-        (== (0 :: Int)) <$> readByteArray t j
-
-      isEntry !i ys = do
-        v <- readByteArray t i
-        case ys of
-          [] | v == 0 -> return (-1)
-          y : ys' | v == y -> isEntry (i + 1) ys'
-          _ -> return i
+count :: forall a m. (Finite a, PrimMonad m) => Counter m a -> a -> m ()
+count (MkCounter t e) a = do
+  go (h `mod` searchSpace)
  where
-  xs' = group a
-  h = hash xs'
-  n = length xs'
+  ws = group a
+  wl = length ws
+  h = hash ws
+  n = wl + 2
+  searchSpace = size - n
+  size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
+
+  go :: Int -> m ()
+  go !i = do
+    j <- (+ 1) <$> findZeroFrom i
+    v <- readByteArray @Int t j
+    if
+        | v == 0 -> do
+            findFirstNonZeroFrom t (j + 1) (j + n) >>= \case
+              (-1) -> do
+                writeAllByteArray t j (1 : ws)
+                MutVar.modifyMutVar' e ((a, j) :)
+              k -> do
+                go k
+        | otherwise ->
+            findFirstDiffFrom t (j + 1) ws >>= \case
+              (-1) -> do
+                writeByteArray t j (v + 1)
+              k -> go k
+  findZeroFrom !i = do
+    v <- readByteArray @Int t i
+    if v == 0
+      then return i
+      else findZeroFrom ((i + 1) `mod` searchSpace)
 {-# INLINE count #-}
 
 toList :: PrimMonad m => Counter m a -> m [(a, Int)]
-toList (MkCounter ic ce t te) = do
-  ics <- mapM (\(a, i) -> (a,) <$> readByteArray ic i) =<< MutVar.readMutVar ce
-  ts <- mapM (\(a, i) -> (a,) <$> readByteArray t i) =<< MutVar.readMutVar te
-  return (ics ++ ts)
+toList (MkCounter t e) = do
+  mapM (\(a, i) -> (a,) <$> readByteArray t i) =<< MutVar.readMutVar e
 {-# INLINE toList #-}
 
--- listEntries :: PrimMonad m => Counter m a -> m [([Int], Int)]
--- listEntries (MkCounter ic _ t _) = do
---   error "Broken"
---   -- lst <- IntCounter.toList ic
---   go [] lst) 0
---  where
---   size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
---   go s !i
---     | i == size = return s
---     | otherwise =
---         readByteArray t i >>= \case
---           0 -> go s (i + 1)
---           v -> do
---             (ba, k) <- readByteArrayUntilZero (v :) (i + 1)
---             x <- readByteArray t k
---             go ((ba, x) : s) (k + 1)
---
---   readByteArrayUntilZero s !i = do
---     readByteArray t i >>= \case
---       0 -> return (s [], i + 1)
---       v -> readByteArrayUntilZero (s . (v :)) (i + 1)
--- {-# INLINE listEntries #-}
+listEntries :: PrimMonad m => Counter m a -> m [(Int, [Int])]
+listEntries (MkCounter t _) =
+  go [] 0
+ where
+  size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
+  go s !i
+    | i == size = return s
+    | otherwise =
+        readByteArray t i >>= \case
+          0 -> go s (i + 1)
+          v -> do
+            (ba, k) <- readByteArrayUntilZero id (i + 1)
+            go ((v, ba) : s) (k + 1)
+
+  readByteArrayUntilZero s !i = do
+    readByteArray t i >>= \case
+      0 -> return (s [], i + 1)
+      v -> readByteArrayUntilZero (s . (v :)) (i + 1)
+{-# INLINE listEntries #-}
 
 incrByteArray :: PrimMonad m => MutableByteArray (PrimState m) -> Int -> m ()
 incrByteArray t !i = do
@@ -228,3 +161,65 @@ writeAllByteArray h = go
       writeByteArray h i x
       writeAllByteArray h (i + 1) xs
 {-# INLINE writeAllByteArray #-}
+
+findFirstNonZeroFrom ::
+  PrimMonad m =>
+  MutableByteArray (PrimState m) ->
+  Int ->
+  Int ->
+  m Int
+findFirstNonZeroFrom h i k = go i
+ where
+  go !j
+    | j == k = return (-1)
+    | otherwise = do
+        v <- readByteArray h j
+        if
+            | v == (0 :: Int) -> go (j + 1)
+            | otherwise -> return j
+{-# INLINE findFirstNonZeroFrom #-}
+
+findFirstDiffFrom ::
+  PrimMonad m =>
+  MutableByteArray (PrimState m) ->
+  Int ->
+  [Int] ->
+  m Int
+findFirstDiffFrom h i = \case
+  [] -> return (-1)
+  x : xs -> do
+    v <- readByteArray h i
+    if
+        | v == x -> go (i + 1) xs
+        | otherwise -> return i
+ where
+  go !j = \case
+    [] -> return (-1)
+    x : xs -> do
+      v <- readByteArray h j
+      if
+          | v == x -> go (j + 1) xs
+          | otherwise -> return j
+{-# INLINE findFirstDiffFrom #-}
+
+toListOfInt ::
+  PrimMonad m =>
+  MutableByteArray (PrimState m) ->
+  m [Int]
+toListOfInt t = go 0
+ where
+  size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
+  go !i
+    | i == size = return []
+    | otherwise = do
+        x <- readByteArray t i
+        (x :) <$> go (i + 1)
+
+-- test :: [[Int]] -> IO ()
+-- test ints = do
+--   c@(MkCounter t _) <- new 20
+--   print =<< toListOfInt t
+--   forM_ ints $ \i -> do
+--     count c i
+--     print =<< toListOfInt t
+--   print =<< Finite.toList c

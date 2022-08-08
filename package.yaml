@@ -37,3 +37,13 @@ benchmarks:
       - counton
     verbatim:
       default-language: GHC2021
+
+tests:
+  test:
+    main: Main.hs
+    source-dirs: test
+    dependencies:
+      - counton
+      - QuickCheck
+    verbatim:
+      default-language: GHC2021

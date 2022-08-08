@@ -27,6 +27,7 @@ import qualified Count
 
 import Data.Bits
 import Data.Functor.Contravariant (Contravariant (contramap))
+import Data.Char (toLower)
 
 -- Convert a ByteString into a list of words for use in an
 -- internal trie
@@ -44,8 +45,11 @@ instance D.Grouping B.ByteString where
 
 main :: IO ()
 main = do
-  kjvbible :: [B.ByteString] <- {-# SCC readkjvbible #-} C.words <$!!> B.readFile "data/kjvbible.txt"
+  kjvbible :: [B.ByteString] <- {-# SCC readkjvbible #-} C.words . C.map (toLower) <$!!> B.readFile "data/kjvbible.txt"
   numbers :: [Int] <- {-# SCC readkjvbible #-} List.map read . List.words <$!!> IO.readFile "data/numbers.txt"
+
+  Prelude.writeFile "output1.txt" $ (List.unlines . List.map (show . fst) $ Count.viaFinite kjvbible)
+  Prelude.writeFile "output2.txt" $ (List.unlines . List.map (show . fst) $ Count.viaVectorHashMap kjvbible)
 
   -- print $ Count.viaFinite numbers
   defaultMain
