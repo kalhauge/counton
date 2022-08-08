@@ -13,7 +13,7 @@ import qualified Data.ByteString as B
 import Data.Hashable
 import qualified Data.List as List
 import Data.Primitive
-import qualified IntCounter
+import qualified Data.Primitive.MutVar as MutVar
 import Prelude hiding (lookup)
 
 type MArray m = MutableByteArray (PrimState m)
@@ -81,10 +81,132 @@ instance Finite B.ByteString where
 
 -}
 
-data Counter m = MkCounter
-  { intCounter :: !(IntCounter.IntCounter m)
+data Counter m a = MkCounter
+  { intCounter :: !(MutableByteArray (PrimState m))
+  , intEntries :: !(MutVar.MutVar (PrimState m) [(a, Int)])
   , stringCounter :: !(MutableByteArray (PrimState m))
+  , stringEntries :: !(MutVar.MutVar (PrimState m) [(a, Int)])
   }
+
+new :: PrimMonad m => Int -> m (Counter m a)
+new n = do
+  ic <- newByteArray (n * 2 * sizeOf (0 :: Int))
+  setByteArray ic 0 n (0 :: Int)
+  ce <- MutVar.newMutVar []
+
+  t <- newByteArray (n * sizeOf (0 :: Int))
+  setByteArray t 0 n (0 :: Int)
+  te <- MutVar.newMutVar []
+
+  pure (MkCounter ic ce t te)
+{-# INLINE new #-}
+
+count :: (Finite a, PrimMonad m) => Counter m a -> a -> m ()
+count (MkCounter ic ce t te) a = do
+  case xs' of
+    [] -> error "Not Implemented Yet"
+    [k] -> go (unsafeShiftL k 1 `mod` size)
+     where
+      -- From IntCounter, but use count as sentinel to avoid (-1) error
+      size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
+      go !i = do
+        key <- readByteArray ic i
+        v <- readByteArray ic (i + 1)
+        if
+            -- slot is empty
+            | v == (0 :: Int) -> do
+                MutVar.modifyMutVar ce ((a, i + 1) :)
+                writeByteArray ic i k
+                writeByteArray ic (i + 1) (1 :: Int)
+            -- slot is filled
+            | key == k -> do
+                writeByteArray ic (i + 1) (v + 1 :: Int)
+            -- wrong slot
+            | otherwise -> do
+                go ((i + 2) `rem` size)
+    x : xs -> do
+      let i = (h `mod` (size - n - 1))
+      if i > 2
+        then do
+          findNextEntryFrom (i - 2) >>= go
+        else go i
+     where
+      go !i = do
+        v <- readByteArray t i
+        if
+            | v == x -> do
+                isEntry (i + 1) xs >>= \case
+                  (-1) -> incrByteArray t (i + n + 1)
+                  j -> findNextEntryFrom j >>= go
+            | v == 0 -> do
+                checkZeroesWithin (i + 1) (i + n + 2) >>= \case
+                  (-1) -> do
+                    MutVar.modifyMutVar te ((a, i + n + 1) :)
+                    writeAllByteArray t i xs'
+                    writeByteArray t (i + n + 1) (1 :: Int)
+                  j -> findNextEntryFrom j >>= go
+            | otherwise -> do
+                isZero ((i - 1) `mod` n) >>= \case
+                  True -> go (i + 1)
+                  False -> findNextEntryFrom i >>= go
+
+      size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
+      findNextEntryFrom !j = do
+        isZero j >>= \case
+          True -> return ((j + 2) `mod` (size - n - 2))
+          False -> findNextEntryFrom ((j + 1) `mod` (size - n - 2))
+
+      checkZeroesWithin !i !j = do
+        isZero i >>= \case
+          True
+            | (i + 1) /= j -> checkZeroesWithin (i + 1) j
+            | otherwise -> return (-1)
+          False -> return (i - 1)
+
+      isZero j =
+        (== (0 :: Int)) <$> readByteArray t j
+
+      isEntry !i ys = do
+        v <- readByteArray t i
+        case ys of
+          [] | v == 0 -> return (-1)
+          y : ys' | v == y -> isEntry (i + 1) ys'
+          _ -> return i
+ where
+  xs' = group a
+  h = hash xs'
+  n = length xs'
+{-# INLINE count #-}
+
+toList :: PrimMonad m => Counter m a -> m [(a, Int)]
+toList (MkCounter ic ce t te) = do
+  ics <- mapM (\(a, i) -> (a,) <$> readByteArray ic i) =<< MutVar.readMutVar ce
+  ts <- mapM (\(a, i) -> (a,) <$> readByteArray t i) =<< MutVar.readMutVar te
+  return (ics ++ ts)
+{-# INLINE toList #-}
+
+-- listEntries :: PrimMonad m => Counter m a -> m [([Int], Int)]
+-- listEntries (MkCounter ic _ t _) = do
+--   error "Broken"
+--   -- lst <- IntCounter.toList ic
+--   go [] lst) 0
+--  where
+--   size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
+--   go s !i
+--     | i == size = return s
+--     | otherwise =
+--         readByteArray t i >>= \case
+--           0 -> go s (i + 1)
+--           v -> do
+--             (ba, k) <- readByteArrayUntilZero (v :) (i + 1)
+--             x <- readByteArray t k
+--             go ((ba, x) : s) (k + 1)
+--
+--   readByteArrayUntilZero s !i = do
+--     readByteArray t i >>= \case
+--       0 -> return (s [], i + 1)
+--       v -> readByteArrayUntilZero (s . (v :)) (i + 1)
+-- {-# INLINE listEntries #-}
 
 incrByteArray :: PrimMonad m => MutableByteArray (PrimState m) -> Int -> m ()
 incrByteArray t !i = do
@@ -106,99 +228,3 @@ writeAllByteArray h = go
       writeByteArray h i x
       writeAllByteArray h (i + 1) xs
 {-# INLINE writeAllByteArray #-}
-
-new :: PrimMonad m => Int -> m (Counter m)
-new n = do
-  i <- IntCounter.new n
-  a <- newByteArray (n * sizeOf (0 :: Int))
-  setByteArray a 0 n (0 :: Int)
-  pure (MkCounter i a)
-{-# INLINE new #-}
-
-count :: PrimMonad m => Counter m -> [Int] -> m ()
-count (MkCounter _ _) [] = return ()
-count (MkCounter ih _) [i] =
-  IntCounter.count ih i
-count (MkCounter _ t) xs'@(x : xs) = do
-  let i = (h `mod` (size - n - 1))
-  if i > 2
-    then do
-      -- Check if its the end of another entry
-      isZero (i - 2) >>= \case
-        True -> go i
-        False -> do
-          -- Or if it's out in nowhere
-          isZero (i - 1) >>= \case
-            True -> go i
-            False -> findNextEntryFrom i >>= go
-    else go i
- where
-  h = hash xs'
-  n = length xs'
-  size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
-  go !i = do
-    v <- readByteArray t i
-    if
-        | v == x -> do
-            isEntry (i + 1) xs >>= \case
-              (-1) -> incrByteArray t (i + n + 1)
-              j -> findNextEntryFrom j >>= go
-        | v == 0 -> do
-            checkZeroesWithin (i + 1) (i + n + 2) >>= \case
-              (-1) -> do
-                writeAllByteArray t i xs'
-                writeByteArray t (i + n + 1) (1 :: Int)
-              j -> findNextEntryFrom j >>= go
-        | otherwise -> do
-            isZero ((i - 1) `mod` n) >>= \case
-              True -> go (i + 1)
-              False -> findNextEntryFrom i >>= go
-
-  checkZeroesWithin !i !j
-    | i == j = return (-1)
-    | otherwise = do
-        isZero i >>= \case
-          True -> checkZeroesWithin (i + 1) j
-          False -> return (i - 1)
-
-  findNextEntryFrom !j = do
-    isZero j >>= \case
-      True -> return ((j + 2) `mod` (size - n - 2))
-      False -> findNextEntryFrom ((j + 1) `mod` (size - n - 2))
-
-  isZero j =
-    (== (0 :: Int)) <$> readByteArray t j
-
-  isEntry !i = \case
-    [] -> do
-      isZero i >>= \case
-        True -> return (-1)
-        False -> return i
-    y : ys -> do
-      v <- readByteArray t i
-      if v == y
-        then isEntry (i + 1) ys
-        else return i
-{-# INLINE count #-}
-
-toList :: PrimMonad m => Counter m -> m [([Int], Int)]
-toList (MkCounter a t) = do
-  lst <- IntCounter.toList a
-  go (map (\(a', b) -> ([a'], b)) lst) 0
- where
-  size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
-  go s !i
-    | i == size = return s
-    | otherwise =
-        readByteArray t i >>= \case
-          0 -> go s (i + 1)
-          v -> do
-            (ba, k) <- readByteArrayUntilZero (v :) (i + 1)
-            x <- readByteArray t k
-            go ((ba, x) : s) (k + 1)
-
-  readByteArrayUntilZero s !i = do
-    readByteArray t i >>= \case
-      0 -> return (s [], i + 1)
-      v -> readByteArrayUntilZero (s . (v :)) (i + 1)
-{-# INLINE toList #-}

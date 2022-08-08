@@ -99,13 +99,13 @@ viaIntCounter items = runST go
     IntCounter.toList h
 {-# INLINE viaIntCounter #-}
 
-viaFinite :: Finite.Finite a => [a] -> [([Int], Int)]
+viaFinite :: forall a. Finite.Finite a => [a] -> [(a, Int)]
 viaFinite items = runST go
  where
-  go :: forall s. ST s [([Int], Int)]
+  go :: forall s. ST s [(a, Int)]
   go = do
-    h :: Finite.Counter (ST s) <- Finite.new 60000
-    traverse_ (Finite.count h) (map Finite.group items)
+    h :: Finite.Counter (ST s) a <- Finite.new 60000
+    traverse_ (Finite.count h) items
     Finite.toList h
 {-# INLINE viaFinite #-}
 
