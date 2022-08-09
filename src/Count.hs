@@ -2,7 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Count where
@@ -55,7 +55,7 @@ viaSorted :: Ord a => [a] -> [(a, Int)]
 viaSorted = Count.Repeated.best . Count.Sort.best
 {-# INLINE viaSorted #-}
 
-viaStrictHashMap :: Hashable a => [a] -> [(a, Int)]
+viaStrictHashMap :: (Eq a, Hashable a) => [a] -> [(a, Int)]
 viaStrictHashMap =
   HashMap.Strict.toList
     . HashMap.Strict.fromListWith (+)
@@ -65,7 +65,7 @@ viaStrictHashMap =
 type HashTable m k v =
   H.Dictionary (H.PrimState m) VM.MVector k UM.MVector v
 
-viaVectorHashMap :: forall a. (Hashable a) => [a] -> [(a, Int)]
+viaVectorHashMap :: forall a. (Eq a, Hashable a) => [a] -> [(a, Int)]
 viaVectorHashMap items = runST go
  where
   go :: forall s. ST s [(a, Int)]
@@ -144,7 +144,7 @@ viaDiscrimination = runCounting D.grouping
     mapM (traverse MutVar.readMutVar) =<< MutVar.readMutVar l
 {-# INLINE viaDiscrimination #-}
 
-best :: Hashable a => [a] -> [(a, Int)]
+best :: (Eq a, Hashable a) => [a] -> [(a, Int)]
 best = viaVectorHashMap
 {-# INLINE best #-}
 

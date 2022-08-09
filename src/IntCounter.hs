@@ -1,5 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- TODO: resize
 
@@ -28,15 +30,15 @@ count (MkCounter t) k = do
   if
       -- slot is empty
       | slot == (-1 :: Int) -> do
-          writeByteArray t i k
-          writeByteArray t (i + 1) (1 :: Int)
+        writeByteArray t i k
+        writeByteArray t (i + 1) (1 :: Int)
       -- slot is filled
       | slot == k -> do
-          v <- readByteArray t (i + 1)
-          writeByteArray t (i + 1) (v + 1 :: Int)
+        v <- readByteArray t (i + 1)
+        writeByteArray t (i + 1) (v + 1 :: Int)
       -- wrong slot
       | otherwise -> do
-          go ((i + 2) `rem` n)
+        go ((i + 2) `rem` n)
  where
   n = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
   go :: Int -> m ()
@@ -45,15 +47,15 @@ count (MkCounter t) k = do
     if
         -- slot is empty
         | slot == (-1 :: Int) -> do
-            writeByteArray t i k
-            writeByteArray t (i + 1) (1 :: Int)
+          writeByteArray t i k
+          writeByteArray t (i + 1) (1 :: Int)
         -- slot is filled
         | slot == k -> do
-            v <- readByteArray t (i + 1)
-            writeByteArray t (i + 1) (v + 1 :: Int)
+          v <- readByteArray t (i + 1)
+          writeByteArray t (i + 1) (v + 1 :: Int)
         -- wrong slot
         | otherwise -> do
-            go ((i + 2) `rem` n)
+          go ((i + 2) `rem` n)
 {-# INLINE count #-}
 
 toList :: forall m. PrimMonad m => IntCounter m -> m [(Int, Int)]
@@ -63,12 +65,12 @@ toList (MkCounter t) =
       go s !i
         | i == n = pure s
         | otherwise = do
-            slot <- readByteArray t i
-            if slot == (-1 :: Int)
-              then do
-                go s (i + 2)
-              else do
-                v <- readByteArray t (i + 1)
-                go ((slot, v) : s) (i + 2)
+          slot <- readByteArray t i
+          if slot == (-1 :: Int)
+            then do
+              go s (i + 2)
+            else do
+              v <- readByteArray t (i + 1)
+              go ((slot, v) : s) (i + 2)
    in go [] 0
 {-# INLINE toList #-}

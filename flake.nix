@@ -35,7 +35,7 @@
     flake-utils.lib.eachSystem (flake-utils.lib.defaultSystems) (system:
       let
         pkgs = (import nixpkgs { inherit system; });
-        haskellPackages = pkgs.haskell.packages.ghc922;
+        haskellPackages = pkgs.haskell.packages.ghc8107;
         project = returnShellEnv:
           haskellPackages.developPackage {
             inherit returnShellEnv;

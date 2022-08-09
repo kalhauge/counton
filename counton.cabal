@@ -46,7 +46,7 @@ library
     , unordered-containers
     , vector
     , vector-hashtables
-  default-language: GHC2021
+  default-language: Haskell2010
 
 test-suite test
   type: exitcode-stdio-1.0
@@ -67,11 +67,12 @@ test-suite test
     , deepseq
     , discrimination
     , hashable
+    , hspec
     , primitive
     , unordered-containers
     , vector
     , vector-hashtables
-  default-language: GHC2021
+  default-language: Haskell2010
 
 benchmark main
   type: exitcode-stdio-1.0
@@ -95,4 +96,4 @@ benchmark main
     , unordered-containers
     , vector
     , vector-hashtables
-  default-language: GHC2021
+  default-language: Haskell2010

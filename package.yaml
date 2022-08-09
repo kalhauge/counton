@@ -26,8 +26,8 @@ dependencies:
 
 library:
   source-dirs: src
-  verbatim:
-    default-language: GHC2021
+# verbatim:
+#    default-language: GHC2021
 
 benchmarks:
   main:
@@ -35,8 +35,8 @@ benchmarks:
     source-dirs: benchmark
     dependencies:
       - counton
-    verbatim:
-      default-language: GHC2021
+        #    verbatim:
+        #      default-language: GHC2021
 
 tests:
   test:
@@ -45,5 +45,6 @@ tests:
     dependencies:
       - counton
       - QuickCheck
-    verbatim:
-      default-language: GHC2021
+      - hspec
+        #    verbatim:
+        #      default-language: GHC2021
