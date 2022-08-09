@@ -2,10 +2,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
+import Control.Monad (zipWithM)
 import Count
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
 import Data.Char (toLower)
+import Data.Foldable
+import qualified Data.List as List
 import Test.Hspec
 
 main :: IO ()
@@ -14,8 +17,10 @@ main = hspec do
     kjvbible :: [B.ByteString] <-
       C.words . C.map (toLower)
         <$> runIO (B.readFile "data/kjvbible.txt")
-    let counts = Count.viaStrictMap kjvbible
+    let counts = List.sortOn fst $ Count.viaStrictMap kjvbible
 
     describe "viaFinite" do
       it "should produce the right results" do
-        Count.viaFinite kjvbible `shouldMatchList` counts
+        let result = List.sortOn fst (Count.viaFinite kjvbible)
+        forM_ (zip3 [0 :: Int ..] result counts) $ \(i, r, c) ->
+          (i, r) `shouldBe` (i, c)

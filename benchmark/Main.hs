@@ -1,11 +1,13 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Main where
 
 -- data
 import qualified Data.List as List
-import qualified System.IO as IO
 import Data.Word (Word64)
+import qualified System.IO as IO
 
 -- bytestring
 import Data.ByteString as B
@@ -26,8 +28,8 @@ import qualified Count
 -- contravariant
 
 import Data.Bits
-import Data.Functor.Contravariant (Contravariant (contramap))
 import Data.Char (toLower)
+import Data.Functor.Contravariant (Contravariant (contramap))
 
 -- Convert a ByteString into a list of words for use in an
 -- internal trie

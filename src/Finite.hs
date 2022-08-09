@@ -65,7 +65,7 @@ instance Finite B.ByteString where
   Idea:
 
   1. Encode all data as positive integers.
-  2. Save entries in array of type
+  2. Save entries in array of type:
 
     .|-C|W|W|W..|.
      |<--- n --->| = |Ws| + 1
@@ -79,52 +79,47 @@ data Counter m a = MkCounter
 new :: PrimMonad m => Int -> m (Counter m a)
 new n = do
   t <- newByteArray (n * sizeOf (0 :: Int))
-  -- array starts as zero --
   setByteArray t 0 n (-1 :: Int)
   e <- MutVar.newMutVar []
   pure (MkCounter t e)
 {-# INLINE new #-}
 
-count :: PrimMonad m => Counter m [Int] -> [Int] -> m ()
+count :: (PrimMonad m, Finite a) => Counter m a -> a -> m ()
 count = countOn group
 {-# INLINE count #-}
 
 countOn :: forall a m. (PrimMonad m) => (a -> [Int]) -> Counter m a -> a -> m ()
 countOn group' (MkCounter t e) a = do
-  if any (< 0) ws
-    then error "Bad Key"
-    else return ()
   go (h `mod` searchSpace)
  where
   ws = group' a
   wl = length ws
   h = hash ws
-  n = wl + 1
-  searchSpace = size - n - 1
+  n = wl + 2
+  searchSpace = size - n
   size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
 
   go :: Int -> m ()
   go !i = do
     (c, j) <- findNegativeFrom i
-    traceShowM (i, c, j)
     if
         | c < -1 -> do
           findFirstDiffFrom t (j + 1) ws >>= \case
             (-1) -> do
-              -- x <- readByteArray @Int t (j + 1 + wl)
-              -- if x < 0
-              -- then
-              writeByteArray t j (c - 1)
-            -- else go (j + 1 + wl)
+              x <- readByteArray @Int t (j + 1 + wl)
+              if x < 0
+                then writeByteArray t j (c - 1)
+                else go (j + 1 + wl)
             k -> do
               go k
         | otherwise ->
-          findFirstPositiveFromTo t (j + 1) (j + n) >>= \case
+          findFirstPositiveFromTo t (j + 1) (j + 2 + wl) >>= \case
             (-1) -> do
               writeAllByteArray t j (-2 : ws)
               MutVar.modifyMutVar' e ((a, j) :)
             k -> do
               go k
+
   findNegativeFrom !i = do
     v <- readByteArray @Int t i
     if v < 0
@@ -231,11 +226,25 @@ toListOfInt t = go 0
       x <- readByteArray t i
       (x :) <$> go (i + 1)
 
-test :: [[Int]] -> IO ()
-test ints = do
-  c@(MkCounter t _) <- new 20
-  print =<< toListOfInt t
-  forM_ ints $ \i -> do
-    count c i
-    print =<< toListOfInt t
-  print =<< Finite.toList c
+toListOfIntFromTo ::
+  PrimMonad m =>
+  MutableByteArray (PrimState m) ->
+  Int ->
+  Int ->
+  m [Int]
+toListOfIntFromTo t i k = go i
+ where
+  go !j
+    | i == k = return []
+    | otherwise = do
+      x <- readByteArray t j
+      (x :) <$> go (j + 1)
+
+-- test :: [[Int]] -> IO ()
+-- test ints = do
+--   c@(MkCounter t _) <- new 20
+--   print =<< toListOfInt t
+--   forM_ ints $ \i -> do
+--     count c i
+--     print =<< toListOfInt t
+--   print =<< Finite.toList c

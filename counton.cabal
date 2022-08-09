@@ -48,6 +48,29 @@ library
     , vector-hashtables
   default-language: Haskell2010
 
+executable main
+  main-is: Main.hs
+  other-modules:
+      Paths_counton
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -fno-warn-incomplete-uni-patterns
+  build-depends:
+      base >=4.9 && <5
+    , bytestring
+    , containers
+    , contravariant
+    , counton
+    , criterion
+    , deepseq
+    , discrimination
+    , hashable
+    , primitive
+    , unordered-containers
+    , vector
+    , vector-hashtables
+  default-language: Haskell2010
+
 test-suite test
   type: exitcode-stdio-1.0
   main-is: Main.hs
@@ -74,7 +97,7 @@ test-suite test
     , vector-hashtables
   default-language: Haskell2010
 
-benchmark main
+benchmark bench
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:

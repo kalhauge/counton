@@ -156,10 +156,6 @@ benchmark items =
   , b "viaStrictMap" viaStrictMap
   , b "viaFinite" viaFinite
   , b "viaDiscrimination" viaDiscrimination
-  -- , b "viaLazyMap" viaLazyMap
-  -- , b "viaSorted" viaSorted
-  -- , bgroup "sort" (Count.Sort.benchmark items)
-  -- , bgroup "repeated" (Count.Repeated.benchmark (Count.Sort.best items))
   ]
     ++ ( case eqT @[a] @[Int] of
           Just Refl ->

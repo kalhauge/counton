@@ -29,8 +29,15 @@ library:
 # verbatim:
 #    default-language: GHC2021
 
-benchmarks:
+executables:
   main:
+    main: Main.hs
+    source-dirs: app
+    dependencies:
+      - counton
+
+benchmarks:
+  bench:
     main: Main.hs
     source-dirs: benchmark
     dependencies:
