@@ -53,4 +53,5 @@ main = do
   defaultMain
     [ bgroup "kjvbible" (Count.benchmark kjvbible)
     , bgroup "numbers" (Count.benchmark numbers)
+    , bgroup "10xkjvbible" (Count.benchmark (List.concat $ List.replicate 10 kjvbible))
     ]
