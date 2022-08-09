@@ -10,23 +10,32 @@
 {-# LANGUAGE TypeApplications #-}
 
 -- | A module of finite data, and their compressed.
-module Finite where
+module Finite (
+  Finite (..),
+  Counter,
+  new,
+  count,
+  Finite.toList,
+) where
 
-import Control.Exception (assert)
-import Control.Monad (unless, when)
-import Control.Monad.Primitive (PrimMonad (PrimState))
+-- base
 import Data.Bits
-import qualified Data.ByteString as B
 import Data.Foldable
-import Data.Hashable
 import qualified Data.List as List
-import Data.Primitive
-import qualified Data.Primitive.MutVar as MutVar
-import Debug.Trace
 import Prelude hiding (lookup)
 
-type MArray m = MutableByteArray (PrimState m)
+-- bytestring
+import qualified Data.ByteString as B
 
+-- primitive
+import Control.Monad.Primitive (PrimMonad (PrimState))
+import Data.Primitive
+import qualified Data.Primitive.MutVar as MutVar
+
+-- hashable
+import Data.Hashable
+
+-- | Convert a finite piece of data into a list of positive integers.
 class Finite a where
   group :: a -> [Int]
 
@@ -72,8 +81,8 @@ instance Finite B.ByteString where
 -}
 
 data Counter m a = MkCounter
-  { array :: !(MutableByteArray (PrimState m))
-  , entries :: !(MutVar.MutVar (PrimState m) [(a, Int)])
+  { _array :: !(MutableByteArray (PrimState m))
+  , _entries :: !(MutVar.MutVar (PrimState m) [(a, Int)])
   }
 
 new :: PrimMonad m => Int -> m (Counter m a)
@@ -95,8 +104,7 @@ countOn group' (MkCounter t e) a = do
   ws = group' a
   wl = length ws
   h = hash ws
-  n = wl + 2
-  searchSpace = size - n
+  searchSpace = size - wl - 2
   size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
 
   go :: Int -> m ()
@@ -113,7 +121,7 @@ countOn group' (MkCounter t e) a = do
             k -> do
               go k
         | otherwise ->
-          findFirstPositiveFromTo t (j + 1) (j + 2 + wl) >>= \case
+          findFirstPositiveFromTo (j + 1) (j + 2 + wl) >>= \case
             (-1) -> do
               writeAllByteArray t j (-2 : ws)
               MutVar.modifyMutVar' e ((a, j) :)
@@ -125,38 +133,22 @@ countOn group' (MkCounter t e) a = do
     if v < 0
       then return (v, i)
       else findNegativeFrom ((i + 1) `mod` searchSpace)
+
+  findFirstPositiveFromTo i k = gof i
+   where
+    gof !j
+      | j == k = return (-1)
+      | otherwise = do
+        v <- readByteArray @Int t j
+        if
+            | v < 0 -> gof (j + 1)
+            | otherwise -> return j
 {-# INLINE countOn #-}
 
 toList :: PrimMonad m => Counter m a -> m [(a, Int)]
 toList (MkCounter t e) = do
   mapM (\(a, i) -> (a,) . (-1 -) <$> readByteArray t i) =<< MutVar.readMutVar e
 {-# INLINE toList #-}
-
-listEntries :: PrimMonad m => Counter m a -> m [(Int, [Int])]
-listEntries (MkCounter t _) =
-  go [] 0
- where
-  size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
-  go s !i
-    | i == size = return s
-    | otherwise =
-      readByteArray t i >>= \case
-        0 -> go s (i + 1)
-        v -> do
-          (ba, k) <- readByteArrayUntilZero id (i + 1)
-          go ((v, ba) : s) (k + 1)
-
-  readByteArrayUntilZero s !i = do
-    readByteArray t i >>= \case
-      0 -> return (s [], i + 1)
-      v -> readByteArrayUntilZero (s . (v :)) (i + 1)
-{-# INLINE listEntries #-}
-
-incrByteArray :: PrimMonad m => MutableByteArray (PrimState m) -> Int -> m ()
-incrByteArray t !i = do
-  v <- readByteArray t i
-  writeByteArray t i (v + 1 :: Int)
-{-# INLINE incrByteArray #-}
 
 writeAllByteArray ::
   PrimMonad m =>
@@ -172,23 +164,6 @@ writeAllByteArray h = go
       writeByteArray h i x
       writeAllByteArray h (i + 1) xs
 {-# INLINE writeAllByteArray #-}
-
-findFirstPositiveFromTo ::
-  PrimMonad m =>
-  MutableByteArray (PrimState m) ->
-  Int ->
-  Int ->
-  m Int
-findFirstPositiveFromTo h i k = go i
- where
-  go !j
-    | j == k = return (-1)
-    | otherwise = do
-      v <- readByteArray @Int h j
-      if
-          | v < 0 -> go (j + 1)
-          | otherwise -> return j
-{-# INLINE findFirstPositiveFromTo #-}
 
 findFirstDiffFrom ::
   PrimMonad m =>
@@ -212,39 +187,3 @@ findFirstDiffFrom h i = \case
           | v == x -> go (j + 1) xs
           | otherwise -> return j
 {-# INLINE findFirstDiffFrom #-}
-
-toListOfInt ::
-  PrimMonad m =>
-  MutableByteArray (PrimState m) ->
-  m [Int]
-toListOfInt t = go 0
- where
-  size = sizeofMutableByteArray t `quot` sizeOf (0 :: Int)
-  go !i
-    | i == size = return []
-    | otherwise = do
-      x <- readByteArray t i
-      (x :) <$> go (i + 1)
-
-toListOfIntFromTo ::
-  PrimMonad m =>
-  MutableByteArray (PrimState m) ->
-  Int ->
-  Int ->
-  m [Int]
-toListOfIntFromTo t i k = go i
- where
-  go !j
-    | i == k = return []
-    | otherwise = do
-      x <- readByteArray t j
-      (x :) <$> go (j + 1)
-
--- test :: [[Int]] -> IO ()
--- test ints = do
---   c@(MkCounter t _) <- new 20
---   print =<< toListOfInt t
---   forM_ ints $ \i -> do
---     count c i
---     print =<< toListOfInt t
---   print =<< Finite.toList c

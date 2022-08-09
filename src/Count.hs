@@ -20,6 +20,7 @@ import Control.DeepSeq (NFData)
 import Criterion (Benchmark, bench, nf)
 
 -- containers
+import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Map.Lazy as Map.Lazy
 import qualified Data.Map.Strict as Map.Strict
 
@@ -45,9 +46,6 @@ import qualified Data.Vector.Unboxed.Mutable as UM
 -- counton
 import qualified Count.Repeated
 import qualified Count.Sort
-import qualified Data.IntMap.Strict as IntMap
-
-import qualified Data.ByteString as B
 import qualified Finite
 import qualified IntCounter
 
